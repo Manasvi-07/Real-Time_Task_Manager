@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
 class CustomUserManager(BaseUserManager):
+    use_in_migrations = True
+    
     def create_user(self, email, username, password=None, **extra_fields):
         if not email:
             raise ValueError('The Email must be set')
