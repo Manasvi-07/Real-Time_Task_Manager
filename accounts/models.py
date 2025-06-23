@@ -1,9 +1,9 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from accounts.enums import RoleChoices
 
 class CustomUserManager(BaseUserManager):
     use_in_migrations = True
-    
     def create_user(self, email, username, password=None, **extra_fields):
         if not email:
             raise ValueError('The Email must be set')
@@ -26,17 +26,12 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, username, password, **extra_fields)
 
 class CustomUser(AbstractUser):
-    ROLE_CHOICES = (
-        ('admin', 'Admin'),
-        ('manager', 'Manager'),
-        ('employee', 'Employee'),
-    )
 
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee')
+    role = models.CharField(max_length=20, choices=RoleChoices.choices, default=RoleChoices.EMPLOYEE)
     email = models.EmailField(unique=True) 
 
     USERNAME_FIELD = 'email'    
-    REQUIRED_FIELDS = ['username']  
+    REQUIRED_FIELDS = []  
 
     def __str__(self):
         return f"{self.email} ({self.role})"
