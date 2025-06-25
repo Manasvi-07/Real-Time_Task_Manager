@@ -26,7 +26,7 @@ class CustomUserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 class CustomUser(AbstractUser):
-    username = None 
+    username = None
     role = models.CharField(max_length=20, choices=RoleChoices.choices, default=RoleChoices.EMPLOYEE)
     email = models.EmailField(unique=True) 
 
@@ -38,4 +38,4 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return f"{self.email} ({self.role})"
     
-    
+
