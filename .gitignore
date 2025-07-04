@@ -135,3 +135,5 @@ media/
 
 #pylint
 .pylintrc
+
+task_attachments
