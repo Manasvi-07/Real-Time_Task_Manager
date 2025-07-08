@@ -136,4 +136,11 @@ media/
 #pylint
 .pylintrc
 
+# file upload
 task_attachments
+
+# Redis snapshot
+dump.rdb
+
+*.sql
+*.dump
