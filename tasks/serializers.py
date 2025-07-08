@@ -10,14 +10,14 @@ class TaskAttachmentSerializer(serializers.ModelSerializer):
         fields = ['id', 'file', 'uploaded_at']
 
 class TaskSerializer(serializers.ModelSerializer):
-    attachments = TaskAttachmentSerializer(many = True, read_only=True)
+    attachments = TaskAttachmentSerializer(many=True, read_only=True)
     class Meta:
         model = Task
-        fields = ['id','title', 'description', 'priority', 'status',
-                  'created_by','assigned_to', 'is_completed',
+        fields = ['id','title', 'description', 'status',
+                  'created_by','assigned_to', 'priority','is_completed',
                   'created_at', 'due_date', 'updated_at', 'attachments']
         
-        read_only_fields = ['created_by','created_at','updated_at'] 
+        read_only_fields = ['id','created_by','created_at','updated_at'] 
 
     def validate_assigned_to(self, value):
         request_user = self.context['request'].user

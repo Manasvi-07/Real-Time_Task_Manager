@@ -1,17 +1,20 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .models import Task, TaskAttachment
+from .models import Task
 from .serializers import TaskSerializer, TaskAttachmentSerializer, TaskStatusUpdateSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied, NotFound
 from accounts.enums import RoleChoices
+from tasks.tasks import send_task_email_notification, notify_task_update
 
 class TaskCreateView(generics.CreateAPIView):
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        task = serializer.save(created_by=self.request.user)
+        send_task_email_notification.delay(task.id)
+        notify_task_update(task)
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -44,19 +47,24 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         if user.role == RoleChoices.ADMIN:
             return task
-        
+
         if user.role == RoleChoices.MANAGER:
             if task.created_by == user:
                 return task
-            raise PermissionDenied("Manager can only update tasks they created")
-        
+            raise PermissionDenied("Managers can only access tasks they created.")
+
         if user.role == RoleChoices.EMPLOYEE:
-            raise PermissionDenied("Employees are not allowed to update tasks.")
-        
-        raise PermissionDenied("You are not allowed to update this task.")
+            if task.assigned_to == user:
+                return task
+            raise PermissionDenied("Employees can only access tasks assigned to them.")
+
+        raise PermissionDenied("You are not allowed to view this task.")
 
     def update(self, request, *args, **kwargs):
         response =  super().update(request, *args, **kwargs)
+        task = self.get_object()
+        notify_task_update(task)
+
         return Response({
             "message":"Tasks Updated Successfully", 
             "data":response.data
@@ -129,6 +137,9 @@ class TaskStatusUpdateView(generics.UpdateAPIView):
     
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
+        task = self.get_object()
+        notify_task_update(task)
+        
         return Response({
             "message": "Task status updated successfully",
             "data": response.data
