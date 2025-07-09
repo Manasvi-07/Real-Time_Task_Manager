@@ -4,14 +4,14 @@ from .models import Task
 from django.utils.timezone import now
 from datetime import timedelta
 from django.conf import settings
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
+from .utils import notify_task_update
 
 @shared_task
 def send_task_email_notification(task_id):
     try:
         task = Task.objects.select_related('assigned_to').get(id=task_id)
-        
+
+        email = task.assigned_to.email
         if task.assigned_to and task.assigned_to.email:
             send_mail(
                 subject=f"New Task Assigned: {task.title}",
@@ -25,13 +25,12 @@ def send_task_email_notification(task_id):
     
     except Task.DoesNotExist:
         return "Task not found"
-  
+    
 @shared_task
 def daily_task_reminder():
     print("Running daily_task_reminder...")
-    tomorrow = now().date() + timedelta(days=1)
+
     tasks = Task.objects.select_related('assigned_to').filter(
-        due_date__date=tomorrow,
         is_completed=False,
         assigned_to__isnull=False,
         assigned_to__email__isnull=False,
@@ -39,33 +38,19 @@ def daily_task_reminder():
 
     count = 0
     for task in tasks:
+        email = task.assigned_to.email
+        print("Sending reminder for task {task.id} to {email}")
+
         send_mail(
-            subject="Reminder: Task Due Tomorrow",
+            subject="Reminder: Task Due Soon",
             message=f"Task: {task.title}\n\nDue: {task.due_date.strftime('%Y-%m-%d %H:%M:%S')}",
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[task.assigned_to.email],
+            recipient_list=[email],
+            fail_silently=False,
         )
+        notify_task_update(task)
+        print(f" Reminder email sent and WebSocket notified for task #{task.id}")
         count += 1
 
+    print(f"Reminder task complete. Total reminders sent: {count}")
     return f"Reminders sent for {count} task(s)"
-
-def notify_task_update(task):
-    from_user = task.created_by
-    to_user = task.assigned_to
-    channel_layer = get_channel_layer()
-
-    payload = {
-        "type": "task_update",
-        "data": {
-            "id": task.id,
-            "title": task.title,
-            "status": task.status,
-            "assigned_to": to_user.username if to_user else None,
-        },
-    }
-
-    for user in [from_user, to_user]:
-        if user:
-            group_name = f"user_{user.id}"
-            print(f"Sending update to group: {group_name}")
-            async_to_sync(channel_layer.group_send)(group_name, payload)

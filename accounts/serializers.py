@@ -13,12 +13,16 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate_role(self, value):
         user = self.context['request'].user
-
+    
         if user.is_authenticated and user.role == RoleChoices.MANAGER and value != RoleChoices.EMPLOYEE:
             raise serializers.ValidationError("Managers can only create employees.")
         return value
 
     def create(self, validated_data):
+        request = self.context['request']
+        if request and request.user.is_authenticated:
+            if request.user.role == RoleChoices.MANAGER:
+                validated_data['role'] = RoleChoices.EMPLOYEE
         return CustomUser.objects.create_user(**validated_data)
     
     def update(self, instance, validated_data):

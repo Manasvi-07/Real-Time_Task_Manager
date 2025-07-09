@@ -6,5 +6,11 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'taskmanager.settings')
 
 app = Celery('taskmanager')
 app.config_from_object('django.conf:settings', namespace='CELERY')
-app.autodiscover_tasks()
+app.autodiscover_tasks(['tasks'])
 
+app.conf.beat_schedule = {
+    'daily-task-reminder': {
+        'task': 'tasks.tasks.daily_task_reminder',
+        'schedule': crontab(hour=9, minute=10),
+    },
+}

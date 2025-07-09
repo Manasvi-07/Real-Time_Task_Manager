@@ -43,5 +43,25 @@ class TaskStatusUpdateSerializer(serializers.ModelSerializer):
 
         def validate_status(self, value):
             if value not in StatusChoices.values:
-                raise serializers.ValidationError("Invalid status value")
+                raise serializers.ValidationError("Invalid status value.")
             return value
+
+    def validate(self, attrs):
+        user = self.context['request'].user
+        task = self.instance  
+
+        if user.role == RoleChoices.ADMIN:
+            return attrs
+
+        elif user.role == RoleChoices.MANAGER:
+            if task.created_by != user:
+                raise ValidationError("Managers can only update tasks they created.")
+
+        elif user.role == RoleChoices.EMPLOYEE:
+            if task.assigned_to != user:
+                raise ValidationError("Employees can only update their own tasks.")
+
+        else:
+            raise ValidationError("You are not allowed to update task status.")
+
+        return attrs

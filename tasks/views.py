@@ -8,7 +8,8 @@ from .serializers import TaskSerializer, TaskAttachmentSerializer, TaskStatusUpd
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied, NotFound
 from accounts.enums import RoleChoices
-from tasks.tasks import send_task_email_notification, notify_task_update
+from tasks.tasks import send_task_email_notification
+from tasks.utils import notify_task_update
 from django.core.cache import cache
 
 def invalidate_task_cache(task):
@@ -97,6 +98,7 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
                 raise PermissionDenied("Employees can only update the task status.")
         
         response =  super().update(request, *args, **kwargs)
+        task.refresh_from_db()
         invalidate_task_cache(task)
         notify_task_update(task)
 
@@ -155,25 +157,11 @@ class TaskStatusUpdateView(generics.UpdateAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskStatusUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        task = super().get_object()
-        user = self.request.user
-
-        if user.role == RoleChoices.ADMIN:
-            return task
-
-        elif user.role == RoleChoices.MANAGER and task.created_by == user:
-            return task
-
-        elif user.role == RoleChoices.EMPLOYEE and task.assigned_to == user:
-            return task
-
-        raise PermissionDenied("You are not allowed to change the status of this task.")
     
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
         task = self.get_object()
+        task.refresh_from_db()
         invalidate_task_cache(task)
         notify_task_update(task)
         
