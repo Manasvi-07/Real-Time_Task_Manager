@@ -7,12 +7,10 @@ class IsAdminOrManagerCanAddEmployee(permissions.BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        requested_role = request.data.get('role')
-
         if user.role == RoleChoices.ADMIN:
             return True
         elif user.role == RoleChoices.MANAGER:
-            return requested_role == RoleChoices.EMPLOYEE
+            return True
         return False
 
 class IsAdminOrManager(permissions.BasePermission):
