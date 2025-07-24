@@ -16,7 +16,7 @@ class JWTAuthMiddleware(BaseMiddleware):
                 user_id = access_token["user_id"]
                 user = await CustomUser.objects.aget(id=user_id)
                 scope["user"] = user
-                print(f"[JWTAuth] Authenticated user: {getattr(user, 'username', None)}")
+                print(f"[JWTAuth] Authenticated user: {user.email}")
             except Exception as e:
                 print(f"[JWTAuth] Token invalid or user not found: {e}")
                 scope["user"] = AnonymousUser()

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>  Update User </title>
+</head>
+<body>
+    <h1>Update User</h1>
+    <form id="userForm">
+        <label>Email:</label>
+        <input type="email" id="email" required><br><br>
+      
+        <label>Role:</label>
+        <select id="role" required>
+          <option value="admin">Admin</option>
+          <option value="manager">Manager</option>
+          <option value="employee">Employee</option>
+        </select><br><br>
+      
+        <button type="submit">Update</button>
+        <button onclick="cancel()">Cancel</button>
+      </form>
+
+    <div id="message"></div>
+
+    <script>
+        const userId = localStorage.getItem("userId");
+        const token = localStorage.getItem("access");
+
+        console.log(userId, token)
+    
+        async function loadUserDetails() {
+            const res = await fetch(`/api/accounts/change-profile/${userId}/`, {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById("email").value = data.email;
+                document.getElementById("role").value = data.role;
+            } else {
+                document.getElementById("message").innerText = "Failed to load user details.";
+            }
+        }
+    
+        async function updateUser(event) {
+            event.preventDefault();
+    
+            const res = await fetch(`/api/accounts/change-profile/${userId}/`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    email: document.getElementById("email").value,
+                    role: document.getElementById("role").value
+                })
+            });
+    
+            if (res.ok) {
+                alert("User updated successfully.");
+                window.location.href = "/tasks/user_list/";
+            } else {
+                const err = await res.json();
+                alert("Update failed: " + JSON.stringify(err));
+            }
+        }
+    
+        document.addEventListener("DOMContentLoaded", loadUserDetails); 
+        document.getElementById("userForm").addEventListener("submit", updateUser);
+
+        function cancel() {
+            localStorage.removeItem("userId");
+            window.location.href = "/tasks/user_list/";
+        }
+    </script>
+</body>
+</html>

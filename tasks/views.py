@@ -4,20 +4,76 @@ from rest_framework.views import APIView
 from .models import Task
 from django.utils.timezone import now
 from django.db.models import Count
-from .serializers import TaskSerializer, TaskAttachmentSerializer, TaskStatusUpdateSerializer
+from .serializers import TaskSerializer, TaskAttachmentSerializer,TaskStatusUpdateSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied, NotFound
 from accounts.enums import RoleChoices
 from tasks.tasks import send_task_email_notification
 from tasks.utils import notify_task_update
 from django.core.cache import cache
+from django.shortcuts import render
+
+def login(request):
+    return render(request, "tasks/login.html")
+
+def task_create(request):
+    return render(request, "tasks/task_create.html")
+
+def task_list(request):
+    return render(request, "tasks/task_list.html")
+
+def update_status(request):
+    return render(request, "tasks/update_status.html")
+
+def task_update(request):
+    return render(request, "tasks/task_update.html")
+
+def signup_admin(request):
+    return render(request, "tasks/signup_admin.html")
+
+def create_user(request):
+    return render(request, "tasks/create_user.html")
+
+def user_list(request):
+    return render(request, "tasks/user_list.html")
+
+def user_update(request):
+    return render(request, "tasks/user_update.html")
+
+def dashboard(request):
+    return render(request, "tasks/dashboard.html")
+
+def profile_user(request):
+    return render(request, "tasks/user_profile.html")
+
+def update_profile(request):
+    return render(request, "tasks/update_profile.html")
+
+def password_reset(request):
+    return render(request, "tasks/password_reset.html")
+
+def password_reset_confirm(request):
+    return render(request, "tasks/password_reset_confirm.html")
+
+def password_change(request):
+    return render(request, "tasks/password_change.html")
+
+def task_details(request):
+    return render(request, "tasks/task_details.html")
+
+def task_attachfile(request):
+    return render(request, "tasks/task_attachfile.html")
+
+def task_report(request):
+    return render(request, "tasks/task_report.html")
 
 def invalidate_task_cache(task):
     if task.assigned_to:
         cache.delete(f"task_list_user_{task.assigned_to.id}")
     if task.created_by:
         cache.delete(f"task_list_user_{task.created_by.id}")
-    
+
+
 class TaskCreateView(generics.CreateAPIView):
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -27,13 +83,15 @@ class TaskCreateView(generics.CreateAPIView):
         invalidate_task_cache(task)
         send_task_email_notification.delay(task.id)
         notify_task_update(task)
+        print(f" Reminder email sent and WebSocket notified for task #{task.id}")
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        return Response({
-            "message":"Task Created Successfully", 
-            "data":response.data
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {"message": "Task Created Successfully", "data": response.data},
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class TaskListView(generics.ListAPIView):
     serializer_class = TaskSerializer
@@ -43,20 +101,25 @@ class TaskListView(generics.ListAPIView):
         user = self.request.user
         cache_key = f"task_list_user_{user.id}"
         cached_queryset = cache.get(cache_key)
-        
+
         if cached_queryset:
             return cached_queryset
-        
-        if user.role == RoleChoices.ADMIN:
-            queryset =  Task.objects.select_related('assigned_to','created_by').all()
-        elif user.role == RoleChoices.MANAGER:
-            queryset =  Task.objects.select_related('assigned_to','created_by').filter(created_by=user)
-        else:
-            queryset =  Task.objects.select_related('assigned_to','created_by').filter(assigned_to=user)
 
-        cache.set(cache_key,queryset,timeout=300)
+        if user.role == RoleChoices.ADMIN:
+            queryset = Task.objects.select_related("assigned_to", "created_by").all()
+        elif user.role == RoleChoices.MANAGER:
+            queryset = Task.objects.select_related("assigned_to", "created_by").filter(
+                created_by=user
+            )
+        else:
+            queryset = Task.objects.select_related("assigned_to", "created_by").filter(
+                assigned_to=user
+            )
+
+        cache.set(cache_key, queryset, timeout=300)
         return queryset
-    
+
+
 class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TaskSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -74,56 +137,58 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
                 return task
             raise PermissionDenied("Managers can only access tasks they created.")
 
-        if user.role == RoleChoices.EMPLOYEE:
+        if user.role == RoleChoices.EMPLOYEE: 
             if task.assigned_to == user:
                 return task
             raise PermissionDenied("Employees can only access tasks assigned to them.")
 
         raise PermissionDenied("You are not allowed to view this task.")
-    
+
     def get_serializer_class(self):
         """Employees can only update status."""
         user = self.request.user
-        if self.request.method in ['PUT', 'PATCH']:
+        if self.request.method in ["PUT", "PATCH"]:
             if user.role == RoleChoices.EMPLOYEE:
-                return TaskStatusUpdateSerializer  
+                return TaskStatusUpdateSerializer
         return super().get_serializer_class()
 
     def update(self, request, *args, **kwargs):
         task = self.get_object()
 
         if request.user.role == RoleChoices.EMPLOYEE:
-            allowed_fields = {'status'}
+            allowed_fields = {"status"}
             if any(field not in allowed_fields for field in request.data):
                 raise PermissionDenied("Employees can only update the task status.")
-        
-        response =  super().update(request, *args, **kwargs)
+
+        response = super().update(request, *args, **kwargs)
         task.refresh_from_db()
         invalidate_task_cache(task)
         notify_task_update(task)
+        print(f" Reminder email sent and WebSocket notified for task #{task.id}")
 
-        return Response({
-            "message":"Tasks Updated Successfully", 
-            "data":response.data
-        }, status=status.HTTP_200_OK)
-    
+        return Response(
+            {"message": "Tasks Updated Successfully", "data": response.data},
+            status=status.HTTP_200_OK,
+        )
+
     def destroy(self, request, *args, **kwargs):
         task = self.get_object()
         invalidate_task_cache(task)
         user = request.user
 
         if user.role == RoleChoices.ADMIN:
-            pass  
+            pass
         elif user.role == RoleChoices.MANAGER and task.created_by == user:
             pass
         else:
             raise PermissionDenied("You are not allowed to delete this task.")
 
         response = super().destroy(request, *args, **kwargs)
-        return Response({
-            "message":"Tasks Delete Successfully", 
-            "data":response.data
-        }, status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"message": "Tasks Delete Successfully", "data": response.data},
+            status=status.HTTP_204_NO_CONTENT,
+        )
+
 
 class TaskAttachmentUploadView(generics.CreateAPIView):
     serializer_class = TaskAttachmentSerializer
@@ -132,7 +197,7 @@ class TaskAttachmentUploadView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        task_id = self.kwargs.get('task_id')
+        task_id = self.kwargs.get("task_id")
 
         try:
             task = Task.objects.get(id=task_id)
@@ -141,35 +206,44 @@ class TaskAttachmentUploadView(generics.CreateAPIView):
 
         if user.role == RoleChoices.ADMIN:
             pass
-        
+
         elif user.role == RoleChoices.MANAGER:
             if task.assigned_to.role != RoleChoices.EMPLOYEE:
-                raise PermissionDenied("Managers can only attach files to tasks assigned to employees.")
-        
+                raise PermissionDenied(
+                    "Managers can only attach files to tasks assigned to employees."
+                )
+
         elif user.role == RoleChoices.EMPLOYEE:
             if task.assigned_to != user:
-                raise PermissionDenied("Employees can only attach files to their own tasks.")
+                raise PermissionDenied(
+                    "Employees can only attach files to their own tasks."
+                )
         else:
-            raise PermissionDenied("You do not have permission to attach files to this task.")
+            raise PermissionDenied(
+                "You do not have permission to attach files to this task."
+            )
         serializer.save(task=task)
+
 
 class TaskStatusUpdateView(generics.UpdateAPIView):
     queryset = Task.objects.all()
     serializer_class = TaskStatusUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
         task = self.get_object()
         task.refresh_from_db()
         invalidate_task_cache(task)
         notify_task_update(task)
-        
-        return Response({
-            "message": "Task status updated successfully",
-            "data": response.data
-        }, status=status.HTTP_200_OK)
-    
+        print(f" Reminder email sent and WebSocket notified for task #{task.id}")
+
+        return Response(
+            {"message": "Task status updated successfully", "data": response.data},
+            status=status.HTTP_200_OK,
+        )
+
+
 class TaskReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -190,12 +264,16 @@ class TaskReportView(APIView):
         if user.role == RoleChoices.ADMIN:
             productivity = (
                 Task.objects.filter(is_completed=True)
-                .values("assigned_to__email", "created_by__email", "id", "status", "title")
+                .values(
+                    "assigned_to__email", "created_by__email", "id", "status", "title"
+                )
                 .annotate(total=Count("id"))
             )
-        
-        return Response({
-            "overdue_tasks":overdue,
-            "completed_tasks":completed,
-            "productivity":productivity
-        })
+
+        return Response(
+            {
+                "overdue_tasks": overdue,
+                "completed_tasks": completed,
+                "productivity": productivity,
+            }
+        )

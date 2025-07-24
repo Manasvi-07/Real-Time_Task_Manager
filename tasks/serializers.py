@@ -3,6 +3,7 @@ from .models import Task, TaskAttachment
 from accounts.enums import RoleChoices
 from rest_framework.exceptions import ValidationError
 from .enums import StatusChoices
+from accounts.models import CustomUser
 
 class TaskAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -11,13 +12,23 @@ class TaskAttachmentSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     attachments = TaskAttachmentSerializer(many=True, read_only=True)
+    created_by = serializers.PrimaryKeyRelatedField(read_only=True)
+    assigned_to = serializers.PrimaryKeyRelatedField(allow_null=True, queryset=CustomUser.objects.all())
+    assigned_to_email = serializers.EmailField(source="assigned_to.email", read_only=True)
+    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
     class Meta:
         model = Task
         fields = ['id','title', 'description', 'status',
-                  'created_by','assigned_to', 'priority','is_completed',
+                  'created_by','assigned_to', 'assigned_to_email', 'created_by_email','priority','is_completed',
                   'created_at', 'due_date', 'updated_at', 'attachments']
         
         read_only_fields = ['id','created_by','created_at','updated_at'] 
+
+    def get_created_by_email(self, obj):
+        return getattr(obj.created_by, "email", None)
+
+    def get_assigned_to_email(self, obj):
+        return getattr(obj.assigned_to, "email", None)
 
     def validate_assigned_to(self, value):
         request_user = self.context['request'].user
@@ -41,10 +52,10 @@ class TaskStatusUpdateSerializer(serializers.ModelSerializer):
         model = Task
         fields = ['status']
 
-        def validate_status(self, value):
-            if value not in StatusChoices.values:
-                raise serializers.ValidationError("Invalid status value.")
-            return value
+    def validate_status(self, value):
+        if value not in StatusChoices.values:
+            raise serializers.ValidationError("Invalid status value.")
+        return value
 
     def validate(self, attrs):
         user = self.context['request'].user

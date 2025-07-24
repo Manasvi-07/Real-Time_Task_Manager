@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Create User </title>
+</head>
+<body>
+    <h2>Create User</h2>
+    <form id="userForm">
+        <label>Email:</label>
+        <input type="email" id="email" placeholder="Email" required><br><br>
+
+        <label>Password:</label>
+        <input type="password" id="password" placeholder="Password" required><br><br>
+
+        <label>Role:</label>
+        <select id="role" required>
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+        </select><br><br>
+
+        <button type="submit">Create User</button>
+        <button onclick="window.location.href='/tasks/user_list/'">Cancel</button>
+    </form>
+
+    <div id="message"></div>
+
+    <script>
+        const token = localStorage.getItem("access");
+        const currentUserRole = localStorage.getItem("role");
+
+        const roleSelect = document.getElementById("role");
+        if (currentUserRole === "manager") {
+            roleSelect.innerHTML = '<option value="employee">Employee</option>';
+        }
+
+        document.getElementById("userForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const role = document.getElementById("role").value;
+
+            const res = await fetch("/api/accounts/users/add/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ email, password, role })
+            }); 
+
+            const data = await res.json();
+            const messageDiv = document.getElementById("message");
+
+            if (res.ok) {
+                document.getElementById("userForm").reset();
+                alert("User created successfully");
+                window.location.href = "/tasks/login/";
+            } else {
+                messageDiv.innerText = data.detail || JSON.stringify(data);
+            }
+        });
+    </script>
+   
+</body>
+</html>

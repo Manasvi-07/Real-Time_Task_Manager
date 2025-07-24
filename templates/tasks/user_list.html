@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>  User List </title>
+</head>
+<body>
+    <h1>User List</h1>
+    <button onclick="window.location.href='/tasks/dashboard/'">Back to Dashboard</button>
+    <hr>
+    <div id="userList"></div>
+
+    <script>
+        const token = localStorage.getItem("access");
+        const userRole = localStorage.getItem("role");
+
+        function canEdit(targetRole) {
+            if (userRole === "admin") return true;
+            return userRole === "manager" && targetRole === "employee";
+        }
+
+        function editUser(id) {
+            localStorage.setItem("userId", id);
+            window.location.href = "/tasks/user_update/";
+        }
+
+        async function fetchUsers() {
+            try {
+                const res = await fetch(`/api/accounts/users/`, {
+                    headers: {
+                         Authorization: `Bearer ${token}` }
+                });
+
+                const users = await res.json();
+                const userList = document.getElementById("userList");
+                userList.innerHTML = "";
+
+                users.forEach(user => {
+                    if (userRole === "manager" && user.role !== "employee") return;
+
+                    const allowEdit = canEdit(user.role);
+
+                    const userItem = document.createElement("div");
+                    userItem.innerHTML = `
+                        <strong>Email:</strong> ${user.email}<br>
+                        <strong>Role:</strong> ${user.role}<br>
+                        <div>
+                            ${allowEdit ? `<button onclick="editUser(${user.id})">Edit</button>` : ""}
+                        </div>
+                        <hr>
+                    `;
+                    userList.appendChild(userItem);
+                });
+
+                if (userList.innerHTML.trim() === "") {
+                    userList.innerHTML = "<p>No users to show.</p>";
+                }
+
+            } catch (error) {
+                document.getElementById("userList").innerHTML = "<p>Error loading users.</p>";
+                console.error("Error fetching users:", error);
+            }
+        }
+
+        fetchUsers();
+    </script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Task Details </title>
+</head>
+<body>
+    <h2>Task Details</h2>
+    <p><strong>Title:</strong> <span id="title"></span></p>
+    <p><strong>Description:</strong> <span id="description"></span></p>
+    <p><strong>Status:</strong> <span id="status"></span></p>
+    <p><strong>Priority:</strong> <span id="priority"></span></p>
+    <p><strong>Is Completed:</strong> <span id="is_completed"></span></p>
+    <p><strong>Created by:</strong> <span id="created_by"></span></p>
+    <p><strong>Assigned To:</strong> <span id="assigned_to"></span></p>
+    <p><strong>Due Date:</strong> <span id="due_date"></span></p>
+    <p><strong>Created At:</strong><span id="created_at"></span></p>
+    <p><strong>Updated At:</strong><span id="updated_at"></span></p>
+
+    <h3>Attachments:</h3>
+    <ul id="attachments"></ul>
+
+    <button onclick="window.location.href='/tasks/task_list/'">Back</button>
+
+    <script>
+        const token = localStorage.getItem("access");
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskId = urlParams.get("task");
+    
+        console.log("Task ID:", taskId);
+    
+        if (!token) {
+            alert("You are not logged in.");
+            window.location.href = "/tasks/login/";
+        }
+    
+        if (!taskId || taskId === "null") {
+            alert("Missing or invalid task ID.");
+            window.location.href = "/tasks/task_list/";
+        }
+    
+        async function fetchTaskDetails() {
+            try {
+                const res = await fetch(`/api/tasks/detail/${taskId}/`, {
+                    method: "GET",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (!res.ok) {
+                    throw new Error("Task not found.");
+                }
+    
+                const data = await res.json();
+    
+                document.getElementById("title").innerText = data.title;
+                document.getElementById("description").innerText = data.description;
+                document.getElementById("status").innerText = data.status;
+                document.getElementById("due_date").innerText = new Date(data.due_date).toLocaleString();
+                document.getElementById("created_by").innerText = data.created_by?.email || data.created_by;
+                document.getElementById("assigned_to").innerText = data.assigned_to?.email || data.assigned_to;
+                document.getElementById("priority").innerText = data.priority;
+                document.getElementById("is_completed").innerText = data.is_completed ? "Yes" : "No";
+                document.getElementById("created_at").innerText = new Date(data.created_at).toLocaleString();
+                document.getElementById("updated_at").innerText = new Date(data.updated_at).toLocaleString();
+
+                const attachmentsList = document.getElementById("attachments");
+                if (!data.attachments || data.attachments.length === 0) {
+                    attachmentsList.innerHTML = "<li>No attachments</li>";
+                } else {
+                    data.attachments.forEach(file => {
+                        const li = document.createElement("li");
+                        const link = document.createElement("a");
+                        link.href = file.file;
+                        link.target = "_blank";
+                        link.innerText = file.file.split("/").pop();
+                        li.appendChild(link);
+                        attachmentsList.appendChild(li);
+                    });
+                }
+    
+            } catch (error) {
+                alert("Error loading task details.");
+                console.error(error);
+                window.location.href = "/tasks/task_list/";
+            }
+        }
+    
+        fetchTaskDetails();
+    </script>
+</body>
+</html>

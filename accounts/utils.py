@@ -6,7 +6,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 def send_password_reset_email(user):
     token = default_token_generator.make_token(user)
     uid = user.pk
-    reset_url = reset_url = f"{settings.BACKEND_URL}/api/accounts/password-reset-form/?uid={uid}&token={token}"
+    reset_url = f"""uid={uid} 
+    token={token}"""
 
     subject = "Set or Reset Your Password"
     message = f"""
@@ -14,7 +15,7 @@ def send_password_reset_email(user):
 
     Someone requested to set or reset your password.
     Click below:
-
+     
     {reset_url}
 
     Ignore this if unexpected.

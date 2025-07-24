@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Update Profile </title>
+</head>
+<body>
+  <h2>Update My Profile</h2>
+
+  <form id="profileForm">
+    <label>Email:</label>
+    <input type="email" id="email" required><br><br>
+    <button type="submit">Update</button>
+    <button type="button" onclick="window.location.href='/tasks/user_profile/'">Cancel</button>
+  </form>
+
+  <script>
+    const token = localStorage.getItem("access");
+
+    if (!token) {
+      alert("Please log in first.");
+      window.location.href = "/tasks/login/";
+    }
+
+    fetch("/api/accounts/profile-user/", {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    })
+    .then(response => {
+      if (!response.ok) throw new Error("Unauthorized");
+      return response.json();
+    })
+    .then(data => {
+      document.getElementById("email").value = data.email;
+    })
+    .catch(error => {
+      alert("Error loading profile.");
+      localStorage.removeItem("access");
+      window.location.href = "/tasks/login/";
+    });
+
+    document.getElementById("profileForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const updatedEmail = document.getElementById("email").value;
+
+      fetch("/api/accounts/update-profile/", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({ email: updatedEmail })
+      })
+      .then(response => {
+        if (!response.ok) throw new Error("Update failed.");
+        return response.json();
+      })
+      .then(data => {
+        alert("Profile updated successfully!");
+        window.location.href = "/tasks/user_profile/";
+      })
+      .catch(error => {
+        alert("Error updating profile: " + error.message);
+      });
+    });
+  </script>
+</body>
+</html>

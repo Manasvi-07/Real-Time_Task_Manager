@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title> Task Report </title>
+</head>
+<body>
+  <h1>Task Report</h1>
+  <p><strong>Overdue Tasks:</strong> <span id="overdueCount">0</span></p>
+  <p><strong>Completed Tasks:</strong> <span id="completedCount">0</span></p>
+
+  <h2>Productivity Report (for Admins)</h2>
+  <table border="1" id="productivityTable" style="display: none;">
+    <thead>
+      <tr>
+        <th>Assigned To</th>
+        <th>Created By</th>
+        <th>Task Title</th>
+        <th>Status</th>
+        <th>Task ID</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const token = localStorage.getItem('access'); 
+
+    fetch('/api/tasks/reports/', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById('overdueCount').textContent = data.overdue_tasks;
+      document.getElementById('completedCount').textContent = data.completed_tasks;
+
+      if (data.productivity && data.productivity.length > 0) {
+        const table = document.getElementById('productivityTable');
+        table.style.display = 'table';
+
+        const tbody = table.querySelector('tbody');
+        data.productivity.forEach(item => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${item.assigned_to__email}</td>
+            <td>${item.created_by__email}</td>
+            <td>${item.title}</td>
+            <td>${item.status}</td>
+            <td>${item.id}</td>
+            <td>${item.total}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+    });
+  </script>
+</body>
+</html>
