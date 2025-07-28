@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     'accounts',
     'tasks',
+    'chat',
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',

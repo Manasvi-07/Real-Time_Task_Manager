@@ -52,6 +52,7 @@
                     if (currentUser) {
                         localStorage.setItem("user_id", currentUser.id);
                         localStorage.setItem("role", currentUser.role);
+                        localStorage.setItem("email", currentUser.email);
                         window.location.href = "/tasks/dashboard/";
                     } else {
                         messageBox.innerText = "User not found.";

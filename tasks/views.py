@@ -67,6 +67,9 @@ def task_attachfile(request):
 def task_report(request):
     return render(request, "tasks/task_report.html")
 
+def user_chat(request):
+    return render(request, "tasks/chat.html")
+
 def invalidate_task_cache(task):
     if task.assigned_to:
         cache.delete(f"task_list_user_{task.assigned_to.id}")
