@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Role-Based Chat</title>
+</head>
+<body>
+  <h2>Role-Based WebSocket Chat</h2>
+
+  <label>Send To:</label>
+  <select id="toEmail"></select>
+  <br><br>
+
+  <div id="chatBox"></div>
+
+  <textarea id="messageInput" placeholder="Type your message..."></textarea><br>
+  <button onclick="sendMessage()">Send</button>
+  <button onclick="window.location.href='/tasks/dashboard/'">Cancel</button>
+
+  <script>
+    const token = localStorage.getItem('access'); 
+    const userId = localStorage.getItem('user_id'); 
+    const chatBox = document.getElementById('chatBox');
+    const emailToIdMap = {}; 
+    const messageInput = document.getElementById('messageInput');
+    const toEmailSelect = document.getElementById('toEmail');
+
+    fetch('/api/accounts/users/', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    .then(res => res.json())
+    .then(users => {
+      users.forEach(user => {
+        if (user.id != userId) {
+          emailToIdMap[user.email.toLowerCase()] = user.id;
+          const option = document.createElement('option');
+          option.value = user.email;
+          option.text = `${user.email} (${user.role})`;
+          toEmailSelect.appendChild(option);
+        }
+      });
+    });
+
+    function getUserIdByEmail(email) {
+      return emailToIdMap[email.toLowerCase()];
+    }
+
+    const socket = new WebSocket(`ws://${window.location.host}/ws/chat/?token=${token}`);
+
+    socket.onopen = () => {
+      console.log("WebSocket connected.");
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const msg = data.message;
+      const fromUsername = data.from_username;
+      const fromRole = data.from_role;
+      const fromId = data.from_user;
+      const toId = data.to_user;
+      const selectedEmail = toEmailSelect.value.trim().toLowerCase();
+
+      const isCurrentChat =
+        (fromId == userId && toId == getUserIdByEmail(selectedEmail)) ||
+        (toId == userId && fromId == getUserIdByEmail(selectedEmail));
+    
+      if (!isCurrentChat) return;
+    
+      const Me = fromId == userId;
+      const displayName = Me ? 'me' : `${fromUsername} (${fromRole})`;
+
+      const div = document.createElement("div");
+      div.classList.add("message");
+      div.innerHTML = `<span class="${Me ? 'me' : 'other'}">${displayName}:</span> ${msg}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    socket.onerror = (e) => {
+      console.error("WebSocket error:", e);
+    };
+
+    toEmailSelect.addEventListener('change', () => {
+      chatBox.innerHTML = '';
+    });
+
+    function sendMessage() {
+      const message = messageInput.value.trim();
+      const toEmail = toEmailSelect.value;
+
+      if (!message || !toEmail) {
+        alert("Message and recipient are required.");
+        return;
+      }
+
+      fetch("/api/chat/send/", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          message: message,
+          to_email: toEmail
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert("Error: " + data.error);
+        } else {
+          messageInput.value = "";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

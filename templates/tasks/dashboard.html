@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Task Manager</title>
+</head>
+<body>
+  <h2>Welcome to Task Manager</h2>
+
+  <nav>
+    <div id="navMenu">
+      <div><a href="/tasks/task_list/">Task List</a></div>
+      <div><a href="/tasks/user_list/">User List</a></div>
+      <div class="admin-manager-only" style="display: none;"><a href="/tasks/task_create/">Task Create</a></div>
+      <div><a href="/tasks/user_profile/">Profile</a></div>
+      <div class="admin-only" style="display: none;"><a href="/tasks/signUp/">Admin Signup</a></div>
+      <div class="admin-manager-only" style="display: none;"><a href="/tasks/create_user/">Create User</a></div>
+      <div class="admin-only" style="display: none;"><a href="/tasks/task_report/">Task Report</a></div>
+      <div><a href="/tasks/user_chat/"> User Chat</a></div>
+      <div class="login-link"><a href="/tasks/login/">Login</a></div>
+      <div class="logout-link" style="display: none;"><a href="#" onclick="logout()">Logout</a></div>
+    </div>
+  </nav>
+
+
+  <script>
+    function logout() {
+      localStorage.clear();
+      window.location.href = "/tasks/login/";
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const role = localStorage.getItem("role");
+
+      if (role) {
+        document.querySelector(".login-link").style.display = "none";
+        document.querySelector(".logout-link").style.display = "block";
+      }
+
+      if (role === "admin") {
+        document.querySelectorAll(".admin-only").forEach(el => el.style.display = "block");
+        document.querySelectorAll(".admin-manager-only").forEach(el => el.style.display = "block");
+      } else if (role === "manager") {
+        document.querySelectorAll(".admin-only").forEach(el => el.style.display = "none");
+        document.querySelectorAll(".admin-manager-only").forEach(el => el.style.display = "block");
+      } else if (role === "employee") {
+        document.querySelectorAll(".admin-only, .admin-manager-only").forEach(el => el.style.display = "none");
+      } else {
+        document.querySelectorAll("#navMenu > div").forEach(el => {
+          if (!el.classList.contains("login-link")) {
+            el.style.display = "none";
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

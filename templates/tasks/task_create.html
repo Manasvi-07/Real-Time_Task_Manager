@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Create Task </title>
+</head>
+<body>
+    <h2 id="form-title">Create Task</h2>
+    <button onclick="window.location.href='/tasks/task_list/'">Back to Task List</button><br><br>
+
+    <label>Title:</label>
+    <input type="text" id="title"><br><br>
+
+    <label>Description:</label>
+    <textarea id="description"></textarea><br><br>
+
+    <label>Priority:</label>
+    <select id="priority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+        <option value="critical">Critical</option>
+    </select><br><br>
+
+    <label>Status:</label>
+    <select id="status">
+        <option value="pending">Pending</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+    </select><br><br>
+
+    <label>Assigned To:</label>
+    <select id="assigned_to" required>
+        <option value="">--Select--</option>
+    </select><br><br>
+
+    <label>Due Date:</label>
+    <input type="datetime-local" id="due_date"><br><br>
+
+    <button id="submitBtn">Save</button>
+    <button onclick="window.location.href = '/tasks/task_list/'">Cancel</button>
+
+    <script>
+        const token = localStorage.getItem("access");
+        const role = localStorage.getItem("role");
+
+        if (!token || (role !== "admin" && role !== "manager")) {
+            alert("Unauthorized");
+            window.location.href = "/tasks/login/";
+        }
+
+        if(token){
+            const socket = new WebSocket(`ws://${window.location.host}/ws/tasks/?token=${token}`);
+
+            socket.onopen = () => console.log(" WebSocket connected");
+
+            socket.onmessage = (event) => {
+                console.log(" WebSocket message received:", event.data);
+                const message = JSON.parse(event.data);
+
+                if (message.type === "task_update") {
+                    const task = message.data;  
+                    const confirmed = confirm(`Task "${task.title}" was updated. Reload to see latest changes?`);
+                    if (confirmed) location.reload();
+                }
+            };
+
+            socket.onclose = () => console.warn(" WebSocket disconnected");
+            socket.onerror = (e) => console.error(" WebSocket error:", e);
+        }else{
+            console.warn("No token found in localStorage")
+        }
+    
+        async function loadUsers() {
+            try {
+                const res = await fetch("/api/accounts/users/", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+        
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        alert("Session expired. Please login again.");
+                        window.location.href = "/tasks/login/";
+                    } else {
+                        const err = await res.json();
+                        alert("Failed to load users: " + JSON.stringify(err));
+                    }
+                    return;
+                }
+        
+                const users = await res.json();
+                const select = document.getElementById("assigned_to");
+
+                users.forEach(user => {
+                    select.innerHTML += `<option value="${user.id}">${user.email}</option>`;
+                });
+            } catch (err) {
+                console.error("Error loading users:", err);
+                alert("Network error while loading users.");
+            }
+        }
+    
+        document.getElementById("submitBtn").addEventListener("click", async () => {
+            const task = {
+                title: document.getElementById("title").value,
+                description: document.getElementById("description").value,
+                priority: document.getElementById("priority").value,
+                status: document.getElementById("status").value,
+                due_date: document.getElementById("due_date").value,
+                assigned_to: document.getElementById("assigned_to").value
+            };
+    
+            const res = await fetch("/api/tasks/create/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(task),
+            });
+    
+            if (res.ok) {
+                alert("Task created successfully!");
+                window.location.href = "/tasks/task_list/";
+            } else {
+                const result = await res.json();
+                alert("Error: " + JSON.stringify(result));
+            }
+        });
+    
+        loadUsers();
+    </script>
+</body>
+</html>

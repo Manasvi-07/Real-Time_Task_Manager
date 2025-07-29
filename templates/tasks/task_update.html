@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Update Task </title>
+</head>
+<body>
+    <h2 id="form-title">Update Task</h2>
+
+    <button onclick="window.location.href='/tasks/task_list/'">Back to Task List</button><br><br>
+
+    <label>Title:</label>
+    <input type="text" id="title"><br><br>
+
+    <label>Description:</label>
+    <textarea id="description"></textarea><br><br>
+
+    <label>Priority:</label>
+    <select id="priority">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+        <option value="critical">Critical</option>
+    </select><br><br>
+
+    <label >Is Completed:</label> 
+    <select id="is_completed">
+        <option value="true">True</option>
+        <option value="false">False</option>
+    </select><br><br>
+
+    <label>Status:</label>
+    <select id="status">
+        <option value="pending">Pending</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+    </select>
+
+    <select id="assigned_to" style="display: none;"></select><br><br> 
+
+    <label>Due Date:</label>
+    <input type="datetime-local" id="due_date"><br><br>
+
+    <button id="submitBtn">Update</button>
+    <button onclick="cancel()">Cancel</button>
+    <script>
+        const token = localStorage.getItem("access");
+        const role = localStorage.getItem("role");
+        const taskId = new URLSearchParams(window.location.search).get("task");
+        const updateUrl = id => `/api/tasks/detail/${id}/`;
+
+        let originalAssignedTo = null;
+        if(token){
+            const socket = new WebSocket(`ws://${window.location.host}/ws/tasks/?token=${token}`);
+
+            socket.onopen = () => console.log(" WebSocket connected");
+
+            socket.onmessage = (event) => {
+                console.log(" WebSocket message received:", event.data);
+                const message = JSON.parse(event.data);
+
+                if (message.type === "task_update") {
+                    const task = message.data;  
+                    const confirmed = confirm(`Task "${task.title}" was updated. Reload to see latest changes?`);
+                    if (confirmed) location.reload();
+                }
+            };
+
+            socket.onclose = () => console.warn(" WebSocket disconnected");
+            socket.onerror = (e) => console.error(" WebSocket error:", e);
+        }else{
+            console.warn("No token found in localStorage")
+        }
+
+        async function loadUsers() {
+            const res = await fetch("/api/accounts/users/", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const users = await res.json();
+            const select = document.getElementById("assigned_to");
+            select.innerHTML = `<option value="">Unassigned</option>`;
+            users.forEach(user => {
+                select.innerHTML += `<option value="${user.id}">${user.email}</option>`;
+            });
+        }
+
+        async function loadTask() { 
+            const res = await fetch(updateUrl(taskId), {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!res.ok) {
+                alert("Failed to load task.");
+                return;
+            }
+
+            const task = await res.json();
+            document.getElementById("title").value = task.title;
+            document.getElementById("description").value = task.description;
+            document.getElementById("priority").value = task.priority;
+            document.getElementById("status").value = task.status;
+            document.getElementById("due_date").value = task.due_date?.slice(0, 16);
+            document.getElementById("assigned_to").value = task.assigned_to || "";
+            document.getElementById("is_completed").value = String(task.is_completed);
+            originalAssignedTo = String(task.assigned_to || "");
+
+            if (role === "employee") {
+                ["title", "description", "priority", "assigned_to", "due_date", "is_completed"].forEach(id => {
+                    document.getElementById(id).disabled = true;
+                });
+            }
+        }
+
+        document.getElementById("submitBtn").addEventListener("click", async () => {
+            const assignedTo = document.getElementById("assigned_to").value;
+            const body = {
+                title: document.getElementById("title").value,
+                description: document.getElementById("description").value,
+                priority: document.getElementById("priority").value,
+                status: document.getElementById("status").value,
+                is_completed: document.getElementById("is_completed").value === "true",
+                due_date: document.getElementById("due_date").value,
+                assigned_to: assignedTo
+            };
+
+            const res = await fetch(updateUrl(taskId), {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                alert("Task updated successfully.");
+                localStorage.removeItem("editTaskId");
+                window.location.href = "/tasks/task_list/";
+            } else {
+                const result = await res.json();
+                alert("Error: " + JSON.stringify(result));
+            }
+        });
+
+        function cancel() {
+            localStorage.removeItem("editTaskId");
+            window.location.href = "/tasks/task_list/";
+        }
+
+        loadUsers().then(loadTask);
+    </script>
+</body>
+</html>

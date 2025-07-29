@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title> Update Task Status </title>
+  </head>
+  <body>
+    <h2>Update Task Status</h2>
+    <form id="statusForm">
+      <label>Status:</label>
+      <select id="status">
+        <option value="pending">Pending</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select><br /><br />
+      <button type="submit">Update</button>
+      <button onclick="cancel()">Cancel</button>
+
+    </form>
+    <script>
+      const taskId = new URLSearchParams(window.location.search).get('task');
+      const token = localStorage.getItem('access');
+      
+      if (!taskId || !token) {
+        alert('Unauthorized or missing task.');
+        window.location.href = '/tasks/task_list/';
+      }
+      
+      document.getElementById('statusForm').addEventListener('submit', async function (e) {
+        e.preventDefault()
+        const status = document.getElementById('status').value;
+      
+        const response = await fetch(`/api/tasks/update-status/${taskId}/`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status })
+        });
+      
+        const result = await response.json(); 
+
+        if (response.ok) {
+          alert("Task status updated successfully.");
+          window.location.href = "/tasks/task_list/";  
+        } else {
+          alert(result.detail || "Failed to update status.");
+        }
+      });
+
+      function cancel() {
+        localStorage.removeItem("taskId");
+        window.location.href = "/tasks/task_list/";
+    }
+    </script>
+  </body>
+</html>

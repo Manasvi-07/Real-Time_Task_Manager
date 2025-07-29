@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>  User Profile </title>
+</head>
+<body>
+    <h2>User Profile</h2>
+
+    <p><strong>Email:</strong> <span id="email"></span></p>
+    <p><strong>Role:</strong> <span id="role"></span></p>
+
+    <button onclick="window.location.href='/tasks/update_profile/'">Update Profile</button>
+    <button onclick="window.location.href='/tasks/dashboard/'">Back to Dashboard</button>
+    <div><a href="/tasks/password_change/">Password Change</a></div>
+
+    <script>
+        const token = localStorage.getItem("access");
+
+        if (!token) {
+            alert("You are not logged in. Redirecting to login.");
+            window.location.href = "/tasks/login/";
+        }
+
+        fetch("/api/accounts/profile-user/", {
+            headers: {
+                "Authorization": "Bearer " + token,
+                "Content-Type": "application/json"
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Unauthorized");
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById("email").innerText = data.email;
+            document.getElementById("role").innerText = data.role;
+        })
+        .catch(error => {
+            console.error("Profile load failed:", error);
+            alert("Session expired. Please log in again.");
+            localStorage.clear();
+            window.location.href = "/tasks/login/";
+        });
+    </script>
+</body>
+</html>

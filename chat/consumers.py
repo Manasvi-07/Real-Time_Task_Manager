@@ -1,24 +1,19 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-class TaskConsumer(AsyncWebsocketConsumer):
+class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        user = self.scope['user']
-        print(" WebSocket Connected User : ", user)
-
-        if user.is_authenticated:
-            self.group_name = f"user_{user.id}"
-            print("Group name : ",self.group_name)
+        self.user = self.scope["user"]
+        if self.user.is_authenticated:
+            self.group_name = f"user_{self.user.id}"
             await self.channel_layer.group_add(self.group_name, self.channel_name)
             await self.accept()
-        else:
-            print("User not authenticated. Closing connection.")
-            await self.close()
+            print(f"User {self.user.email} joined group {self.group_name}")
 
     async def disconnect(self, close_code):
-        if hasattr(self, "group_name"):
+        if self.user.is_authenticated:
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
-    async def task_update(self, event):
+    async def chat_message(self, event):
         print("SENDING TO WEBSOCKET:", event)
         await self.send(text_data=json.dumps(event["data"]))

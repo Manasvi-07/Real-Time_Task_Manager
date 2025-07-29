@@ -1,6 +1,6 @@
 from celery import shared_task
 from django.core.mail import send_mail
-from .models import Task
+from tasks.models import Task
 from django.utils.timezone import now
 from datetime import timedelta
 from django.conf import settings
@@ -39,7 +39,7 @@ def daily_task_reminder():
     count = 0
     for task in tasks:
         email = task.assigned_to.email
-        print("Sending reminder for task {task.id} to {email}")
+        print(f"Sending reminder for task {task.id} to {email}")
 
         send_mail(
             subject="Reminder: Task Due Soon",

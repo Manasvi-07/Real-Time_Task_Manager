@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> Attach File </title>
+</head>
+<body>
+    <h2>Attach File to Task</h2>
+
+    <form id="attachmentForm" enctype="multipart/form-data">
+        <label for="file">Choose file:</label>
+        <input type="file" id="file" name="file" required><br><br>
+
+        <button type="submit">Upload</button>
+        <button type="button" onclick="BackFile()">Back</button>
+    </form>
+    <script>
+        const token = localStorage.getItem("access");
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskId = urlParams.get("task");
+
+        if (!token) {
+            alert("You are not logged in.");
+            window.location.href = "/tasks/login/";
+        }
+
+        if (!taskId || taskId === "null") {
+            alert("Missing or invalid task ID.");
+            window.location.href = "/tasks/task_list/";
+        }
+
+        function BackFile() {
+            window.location.href = `/tasks/task_list`;
+        }
+
+        document.getElementById("attachmentForm").addEventListener("submit", async function(event) {
+            event.preventDefault();
+
+            const formData = new FormData();
+            const fileInput = document.getElementById("file");
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Please select a file.");
+                return;
+            }
+
+            formData.append("task", taskId);
+            formData.append("file", file);
+
+            try {
+                const response = await fetch(`/api/tasks/attachments/${taskId}/`, {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to upload attachment.");
+                }
+
+                alert("File uploaded successfully.");
+                BackFile();
+            } catch (error) {
+                console.error("Error uploading file:", error);
+                alert("Error uploading file.");
+            }
+        });
+    </script>
+</body>
+</html>
